@@ -8,6 +8,7 @@ fn assemble_byte(k0: u8, k1: u8) -> u8 {
     (k0 & 0xf) | ((k1 & 0xf) << 4)
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Cls,
     Ret,
@@ -89,6 +90,33 @@ impl Instruction {
             (0xF,   x, 0x6, 0x5) => Instruction::LdRegMem(x),
 
             _ => panic!("decoded invalid instruction: {source:#04x}"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_test() {
+        use Instruction::*;
+        let decode_table: Vec<(u16, Instruction)> = vec![
+            (0x00E0, Cls),
+            (0x00EE, Ret),
+            (0x10ff, JpImm(0x0ff)),
+            (0x2fcc, Call(0xfcc)),
+            (0x3381, SeImm(3, 0x81)),
+            (0x4242, SneImm(2, 0x42)),
+            (0x5a80, SeReg(0xa, 0x8)),
+            (0x6555, LdImm(5, 0x55)),
+
+            (0x8980, LdReg(9, 8)),
+            (0xA123, LdI(0x123)),
+        ];
+
+        for (bytes, instr) in decode_table {
+            assert_eq!(Instruction::decode(bytes), instr)
         }
     }
 }
