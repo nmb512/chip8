@@ -10,39 +10,176 @@ fn assemble_byte(k0: u8, k1: u8) -> u8 {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
+    /// ### Clear Display
+    /// Clear the Chip-8 display
+    /// #### Assembly Syntax
+    /// `CLS`
     Cls,
+    /// ### Return from Subroutine
+    /// Pop an address from the stack and store it in the program counter.
+    /// #### Assembly Syntax
+    /// `RET`
     Ret,
+    /// ### Jump (immediate)
+    /// Set PC = addr.
+    /// #### Assembly Syntax
+    /// `JP     addr`
     JpImm(u16),
+    /// ### Call Subroutine
+    /// Push the current program counter onto the stack. Then, set the program counter
+    /// to a new value encoded as an immediate in the instruction.
+    /// #### Assembly Syntax
+    /// `CALL   addr`
     Call(u16),
+    /// ### Skip if Equal (immediate)
+    /// Skip the next instruction if Vx == byte.
+    /// #### Assembly Syntax
+    /// `SE     Vx, byte`
     SeImm(u8, u8),
+    /// ### Skip if Not Equal (immediate)
+    /// Skip the next instruction if Vx != byte.
+    /// #### Assembly Syntax
+    /// `SNE    Vx, byte`
     SneImm(u8, u8),
+    /// ### Skip if Equal (register)
+    /// Skip the next instruction if Vx != Vy.
+    /// #### Assembly Syntax
+    /// `SE     Vx, Vy`
     SeReg(u8, u8),
+    /// ### Load (immediate)
+    /// Set Vx = byte.
+    /// #### Assembly Syntax
+    /// `LD     Vx, byte`
     LdImm(u8, u8),
+    /// ### Add (immediate)
+    /// Set Vx = Vx + byte.
+    /// #### Assembly Syntax
+    /// `ADD    Vx, byte`
     AddImm(u8, u8),
+    /// ### Load (register)
+    /// Set Vx = Vy.
+    /// #### Assembly Syntax
+    /// `Vx = Vy`
     LdReg(u8, u8),
+    /// ### Bitwise OR (register)
+    /// Set Vx = Vx | Vy. 
+    /// #### Assembly Syntax
+    /// `OR     Vx, Vy`
     OrReg(u8, u8),
+    /// ### Bitwise AND (register)
+    /// Set Vx = Vx & Vy.
+    /// #### Assembly Syntax
+    /// `AND    Vx, Vy`
     AndReg(u8, u8),
+    /// ### Bitwise XOR (register)
+    /// Set Vx = Vx ^ Vy.
+    /// #### Assembly Syntax
+    /// `XOR    Vx, Vy`
     XorReg(u8, u8),
+    /// ### Add (register)
+    /// Set Vx = Vx + Vy. VF = carry.
+    /// #### Assembly Syntax
+    /// `ADD    Vx, Vy`
     AddReg(u8, u8),
+    /// ### Subtract (register)
+    /// Set Vx = Vx - Vy. VF = NOT borrow.
+    /// #### Assembly Syntax
+    /// `SUB    Vx, Vy`
     SubReg(u8, u8),
+    /// ### Shift Right
+    /// Set Vx = Vy >> 1. VF = carry.
+    /// #### Assembly Syntax
+    /// `SHR    Vx {, Vy}`
     Shr(u8, u8),
+    /// ### Subtract (reversed)
+    /// Set Vx = Vy - Vx. VF = NOT borrow.
+    /// #### Assembly Syntax
+    /// `SUBN   Vx, Vy`
     Subn(u8, u8),
+    /// ### Shift Left
+    /// Set Vx = Vx << 1. VF = carry.
+    /// #### Assembly Syntax
+    /// `SHL    Vx {, Vy}`
     Shl(u8, u8),
+    /// ### Skip if Not Equal (register)
+    /// Skip the next instruction if Vx != Vy.
+    /// #### Assembly Syntax
+    /// `SNE    Vx, Vy`
     SneReg(u8, u8),
+    /// ### Load (index)
+    /// Set I = addr.
+    /// #### Assembly Syntax
+    /// `LD     I, addr`
     LdI(u16),
+    /// ### Jump (register)
+    /// Set the program counter to addr + V0.
+    /// #### Assembly Syntax
+    /// `JP     V0, addr`
     JpReg(u16),
+    /// ### Random Number Generation
+    /// Set Vx = random & byte.
+    /// #### Assembly Syntax
+    /// `RND    Vx, byte`
     Rnd(u8, u8),
+    /// ### Draw Sprite
+    /// Display n-byte sprite starting at memory location I at (Vx, Vy). VF = collision.
+    /// #### Assembly Syntax
+    /// `DRW    Vx, Vy, n`
     Drw(u8, u8, u8),
+    /// ### Skip if Key Pressed
+    /// Skip the next instruction if key with value of Vx is pressed.
+    /// #### Assembly Syntax
+    /// `SKP    Vx`
     Skp(u8),
+    /// ### Skip if Key Not Pressed
+    /// Skip the next instruction if key with value of Vx is NOT pressed.
+    /// #### Assembly Syntax
+    /// `SKNP   Vx`
     Sknp(u8),
+    /// ### Load (register, delay timer)
+    /// Set Vx = delay timer.
+    /// #### Assembly Syntax
+    /// `LD     Vx, DT`
     LdRegDt(u8),
+    /// ### Load (register, key)
+    /// Wait for a key press, then store the value of the pressed key in Vx.
+    /// #### Assembly Syntax
+    /// `LD     Vx, K`
     LdRegK(u8),
+    /// ### Load (delay timer, register)
+    /// Set delay timer = Vx.
+    /// #### Assembly Syntax
+    /// `LD     DT, Vx`
     LdDtReg(u8),
+    /// ### Load (sound timer)
+    /// Set sound timer = Vx.
+    /// #### Assembly Syntax
+    /// `LD     ST, Vx`
     LdStReg(u8),
+    /// ### Add (index)
+    /// Set I = I + Vx.
+    /// #### Assembly Syntax
+    /// `ADD    I, Vx`
     AddI(u8),
+    /// ### Load (font character)
+    /// Set I = location of sprite for digit Vx.
+    /// #### Assembly Syntax
+    /// `LD     F, Vx`
     LdF(u8),
+    /// ### Load (binary coded decimal)
+    /// Store BCD representation of Vx in memory locations I, I+1, I+2.
+    /// #### Assembly Syntax
+    /// `LD     B, Vx`
     LdB(u8),
+    /// ### Load (memory, register)
+    /// Store registers V0 through Vx in memory starting at location I.
+    /// #### Assembly Syntax
+    /// `LD     [I], Vx`
     LdMemReg(u8),
+    /// ### Load (register, memory)
+    /// Read registers V0 through Vx from memory starting at location I.
+    /// #### Assembly Syntax
+    /// `LD     Vx, [I]`
     LdRegMem(u8),
 }
 
