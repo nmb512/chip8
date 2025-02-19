@@ -1,6 +1,11 @@
 
 #![allow(dead_code)]
 
+use crate::instruction::Instruction;
+
+const FONT_BASE_ADDRESS: u16 = 0x100;
+const FONT_CHAR_SIZE: u16 = 5;          // Font sprites are 5 bytes long (8x5 pixels)
+
 /// Stack of 16 16-bit values used for storing memory addresses.
 pub struct Stack {
     bytes: [u16; 16],
@@ -78,6 +83,157 @@ impl Cpu {
     }
 
     pub fn cycle(&mut self) {
-        todo!();
+        // Load instruction word from memory
+        let instr_lo = self.memory[self.pc as usize];
+        let instr_hi = self.memory[self.pc as usize + 1];
+        let instr_word = ((instr_hi as u16) << 8) | instr_lo as u16;
+
+        // Decode instruction word
+        let instr = Instruction::decode(instr_word);
+
+        // Increment program counter
+        self.pc += 2;
+
+        use Instruction::*;
+        match instr {
+            Cls => {
+                // TODO: Implement display
+                todo!();
+            },
+            Ret => {
+                self.pc = self.stack.pop();
+            },
+            JpImm(addr) => {
+                self.pc = addr;
+            },
+            Call(addr) => {
+                self.stack.push(self.pc);
+                self.pc = addr;
+            },
+            SeImm(vx, imm) => {
+                if self.reg[vx as usize] == imm {
+                    self.pc += 2;
+                }
+            },
+            SneImm(vx, imm) => {
+                if self.reg[vx as usize] != imm {
+                    self.pc += 2;
+                }
+            },
+            SeReg(vx, vy) => {
+                if self.reg[vx as usize] == self.reg[vy as usize] {
+                    self.pc += 2;
+                }
+            },
+            LdImm(vx, imm) => {
+                self.reg[vx as usize] = imm;
+            },
+            AddImm(vx, imm) => {
+                (self.reg[vx as usize], _) = self.reg[vx as usize].overflowing_add(imm);
+            },
+            LdReg(vx, vy) => {
+                self.reg[vx as usize] = self.reg[vy as usize];
+            },
+            OrReg(vx, vy) => {
+                self.reg[vx as usize] |= self.reg[vy as usize];
+            },
+            AndReg(vx, vy) => {
+                self.reg[vx as usize] &= self.reg[vy as usize];
+            },
+            XorReg(vx, vy) => {
+                self.reg[vx as usize] ^= self.reg[vy as usize];
+            },
+            AddReg(vx, vy) => {
+                let carry;
+                (self.reg[vx as usize], carry) = self.reg[vx as usize].overflowing_add(self.reg[vy as usize]);
+                // Set flag register based on carry
+                self.reg[0xf] = if carry { 1 } else { 0 };
+            },
+            SubReg(vx, vy) => {
+                let borrow;
+                (self.reg[vx as usize], borrow) = self.reg[vx as usize].overflowing_sub(self.reg[vy as usize]);
+                // Set flag register based on borrow
+                self.reg[0xf] = if !borrow { 1 } else { 0 };
+            },
+            Shr(vx, _vy) => {
+                let carry;
+                (self.reg[vx as usize], carry) = self.reg[vx as usize].overflowing_shr(1);
+                // Set flag register based on carry
+                self.reg[0xf] = if carry { 1 } else { 0 };
+            },
+            Subn(vx, vy) => {
+                let borrow;
+                (self.reg[vx as usize], borrow) = self.reg[vy as usize].overflowing_sub(self.reg[vx as usize]);
+                // Set flag register based on borrow
+                self.reg[0xf] = if !borrow { 1 } else { 0 };
+            },
+            Shl(vx, _vy) => {
+                let carry;
+                (self.reg[vx as usize], carry) = self.reg[vx as usize].overflowing_shl(1);
+                self.reg[0xf] = if carry { 1 } else { 0 };
+            },
+            SneReg(vx, vy) => {
+                if self.reg[vx as usize] != self.reg[vy as usize] {
+                    self.pc += 2;
+                }
+            },
+            LdI(addr) => {
+                self.index = addr;
+            },
+            JpReg(addr) => {
+                self.pc = addr + self.reg[0] as u16;
+            },
+            Rnd(_vx, _imm) => {
+                // TODO: Implement random number generation
+                todo!();
+            },
+            Drw(_vx, _vy, _n) => {
+                // TODO: Implement draw functionality
+                todo!();
+            },
+            Skp(_vx) => {
+                // TODO: Implement keypress detection
+                todo!();
+            },
+            Sknp(_vx) => {
+                // TODO: Implement keypress detection
+                todo!();
+            },
+            LdRegDt(vx) => {
+                self.reg[vx as usize] = self.delay_timer;
+            },
+            LdRegK(_vx) => {
+                // TODO: implement keypress detection
+                todo!()
+            },
+            LdDtReg(vx) => {
+                self.delay_timer = self.reg[vx as usize]
+            },
+            LdStReg(vx) => {
+                self.sound_timer = self.reg[vx as usize]
+            },
+            AddI(vx) => {
+                self.index = self.index.wrapping_add(self.reg[vx as usize] as u16);
+            },
+            LdF(vx) => {
+                self.index = FONT_BASE_ADDRESS + (vx as u16 * FONT_CHAR_SIZE);
+            },
+            LdB(vx) => {
+                todo!()
+            },
+            LdMemReg(vx) => {
+                for i in 0..=vx as usize {
+                    self.memory[self.index as usize + i] = self.reg[i]
+                }
+            },
+            LdRegMem(vx) =>{
+                for i in 0..=vx as usize {
+                    self.reg[i] = self.memory[self.index as usize + i]
+                }
+            },
+
+            #[allow(unreachable_patterns)]
+            _ => panic!("unimplemented instruction: {instr:?}"),
+        }
     }
 }
